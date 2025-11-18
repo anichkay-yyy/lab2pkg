@@ -1,7 +1,27 @@
 import { ImageMetadata } from '@/types/image';
 
+// Helper function to format file sizes
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const k = 1024;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${units[i]}`;
+}
+
+// Helper function to calculate theoretical uncompressed size
+function calculateTheoreticalSize(width: number, height: number, colorDepth: number): number {
+  return width * height * (colorDepth / 8);
+}
+
+// Helper function to format compressed field
+function formatCompressedField(actualSize: number, width: number, height: number, colorDepth: number): string {
+  const theoreticalSize = calculateTheoreticalSize(width, height, colorDepth);
+  return `${formatFileSize(actualSize)} / ${formatFileSize(theoreticalSize)}`;
+}
+
 // BMP Parser
-export function parseBMP(buffer: Buffer, filename: string): ImageMetadata {
+export function parseBMP(buffer: Buffer, filename: string, actualSize: number): ImageMetadata {
   // BMP File Header (14 bytes)
   const signature = buffer.toString('ascii', 0, 2);
   if (signature !== 'BM') {
@@ -43,12 +63,13 @@ export function parseBMP(buffer: Buffer, filename: string): ImageMetadata {
     resolutionY,
     colorDepth: bitsPerPixel,
     compression: compressionTypes[compressionMethod] || `Unknown (${compressionMethod})`,
+    compressed: formatCompressedField(actualSize, width, height, bitsPerPixel),
     format: 'BMP',
   };
 }
 
 // PNG Parser
-export function parsePNG(buffer: Buffer, filename: string): ImageMetadata {
+export function parsePNG(buffer: Buffer, filename: string, actualSize: number): ImageMetadata {
   // Check PNG signature
   const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   if (!buffer.subarray(0, 8).equals(pngSignature)) {
@@ -104,12 +125,13 @@ export function parsePNG(buffer: Buffer, filename: string): ImageMetadata {
     resolutionY,
     colorDepth,
     compression: compressionTypes[compressionMethod] || 'Unknown',
+    compressed: formatCompressedField(actualSize, width, height, colorDepth),
     format: 'PNG',
   };
 }
 
 // JPEG Parser
-export function parseJPEG(buffer: Buffer, filename: string): ImageMetadata {
+export function parseJPEG(buffer: Buffer, filename: string, actualSize: number): ImageMetadata {
   // Check JPEG signature
   if (buffer[0] !== 0xFF || buffer[1] !== 0xD8) {
     throw new Error('Not a valid JPEG file');
@@ -166,12 +188,13 @@ export function parseJPEG(buffer: Buffer, filename: string): ImageMetadata {
     resolutionY,
     colorDepth,
     compression: 'JPEG',
+    compressed: formatCompressedField(actualSize, width, height, colorDepth),
     format: 'JPEG',
   };
 }
 
 // GIF Parser
-export function parseGIF(buffer: Buffer, filename: string): ImageMetadata {
+export function parseGIF(buffer: Buffer, filename: string, actualSize: number): ImageMetadata {
   // Check GIF signature
   const signature = buffer.toString('ascii', 0, 6);
   if (signature !== 'GIF87a' && signature !== 'GIF89a') {
@@ -197,12 +220,13 @@ export function parseGIF(buffer: Buffer, filename: string): ImageMetadata {
     resolutionY: 72,
     colorDepth,
     compression: 'LZW',
+    compressed: formatCompressedField(actualSize, width, height, colorDepth),
     format: 'GIF',
   };
 }
 
 // TIFF Parser
-export function parseTIFF(buffer: Buffer, filename: string): ImageMetadata {
+export function parseTIFF(buffer: Buffer, filename: string, actualSize: number): ImageMetadata {
   // Check TIFF signature
   const byteOrder = buffer.toString('ascii', 0, 2);
   const littleEndian = byteOrder === 'II';
@@ -308,12 +332,13 @@ export function parseTIFF(buffer: Buffer, filename: string): ImageMetadata {
     resolutionY,
     colorDepth,
     compression: compressionTypes[compression] || `Unknown (${compression})`,
+    compressed: formatCompressedField(actualSize, width, height, colorDepth),
     format: 'TIFF',
   };
 }
 
 // PCX Parser
-export function parsePCX(buffer: Buffer, filename: string): ImageMetadata {
+export function parsePCX(buffer: Buffer, filename: string, actualSize: number): ImageMetadata {
   // Check PCX signature
   const manufacturer = buffer.readUInt8(0);
   if (manufacturer !== 10) {
@@ -348,6 +373,7 @@ export function parsePCX(buffer: Buffer, filename: string): ImageMetadata {
     resolutionY: vDpi || 72,
     colorDepth,
     compression: compressionType,
+    compressed: formatCompressedField(actualSize, width, height, colorDepth),
     format: 'PCX',
   };
 }
@@ -358,23 +384,24 @@ export async function parseImageMetadata(
   filename: string
 ): Promise<ImageMetadata> {
   const ext = filename.toLowerCase().split('.').pop() || '';
+  const actualSize = buffer.length;
 
   try {
     switch (ext) {
       case 'bmp':
-        return parseBMP(buffer, filename);
+        return parseBMP(buffer, filename, actualSize);
       case 'png':
-        return parsePNG(buffer, filename);
+        return parsePNG(buffer, filename, actualSize);
       case 'jpg':
       case 'jpeg':
-        return parseJPEG(buffer, filename);
+        return parseJPEG(buffer, filename, actualSize);
       case 'gif':
-        return parseGIF(buffer, filename);
+        return parseGIF(buffer, filename, actualSize);
       case 'tif':
       case 'tiff':
-        return parseTIFF(buffer, filename);
+        return parseTIFF(buffer, filename, actualSize);
       case 'pcx':
-        return parsePCX(buffer, filename);
+        return parsePCX(buffer, filename, actualSize);
       default:
         throw new Error(`Unsupported format: ${ext}`);
     }
@@ -387,6 +414,7 @@ export async function parseImageMetadata(
       resolutionY: 0,
       colorDepth: 0,
       compression: 'N/A',
+      compressed: 'N/A',
       format: ext.toUpperCase(),
       error: error instanceof Error ? error.message : 'Unknown error',
     };

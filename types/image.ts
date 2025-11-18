@@ -6,6 +6,7 @@ export interface ImageMetadata {
   resolutionY: number;
   colorDepth: number;
   compression: string;
+  compressed: string;
   format: string;
   error?: string;
 }

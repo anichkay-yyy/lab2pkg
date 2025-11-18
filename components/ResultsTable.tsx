@@ -62,6 +62,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
       'Resolution Y (DPI)',
       'Color Depth (bits)',
       'Compression',
+      'Compression Ratio (Actual / Theoretical)',
       'Format',
       'Status',
     ];
@@ -74,6 +75,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
       result.resolutionY,
       result.colorDepth,
       result.compression,
+      result.compressed,
       result.format,
       result.error ? `Error: ${result.error}` : 'OK',
     ]);
@@ -180,6 +182,17 @@ export function ResultsTable({ results }: ResultsTableProps) {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => handleSort('compressed')}
+                    className="flex items-center gap-1"
+                  >
+                    Compression Ratio
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleSort('format')}
                     className="flex items-center gap-1"
                   >
@@ -215,6 +228,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
                   </TableCell>
                   <TableCell>{result.colorDepth} bits</TableCell>
                   <TableCell>{result.compression}</TableCell>
+                  <TableCell>{result.compressed}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
                       {result.format}

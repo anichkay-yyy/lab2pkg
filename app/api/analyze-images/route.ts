@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
             resolutionY: 0,
             colorDepth: 0,
             compression: 'N/A',
+            compressed: 'N/A',
             format: 'Unknown',
             error: error instanceof Error ? error.message : 'Failed to parse',
           };
